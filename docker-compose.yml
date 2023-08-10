@@ -1,0 +1,63 @@
+version: "3.8"
+
+services:
+  # start the ganache cli container
+  # comment out "ganache-cli" if you use ganache desktop
+  ganache-cli:
+    build:
+      context: .
+      dockerfile: ganache-cli/Dockerfile
+    container_name: ganache-cli
+    ports:
+      - "8545:8545"
+    volumes:
+      - /app/ganache_data
+    entrypoint:
+      - node
+      - /app/ganache-core.docker.cli.js
+      - --deterministic
+      - --db=/app/ganache_data
+      - --mnemonic
+      - "zebra erase plunge"
+      - --networkId
+      - "1337"
+      - --hostname
+      - "0.0.0.0"
+      - --gasLimit=0x9691b7
+  truffle:
+    container_name: truffle
+    build:
+      context: .
+      dockerfile: truffle/Dockerfile
+    working_dir: /opt/truffle/
+    volumes:
+      # if operations don't need any writes (apart from migration)
+      # then you can use "ro" instead of "rw" for the first volume
+      - ./app:/opt/truffle:rw
+      - contracts:/opt/truffle/client/src/contracts:rw
+      - /opt/truffle/node_modules
+    stdin_open: true # docker run -i (keep container running)
+    tty: true # docker run -t (show output at startup with compose)
+  node-app:
+    build:
+      context: .
+      dockerfile: node-app/Dockerfile
+    container_name: node-app
+    working_dir: /opt/node_app
+    ports:
+      - 3000:3000
+    volumes:
+      - ./app/client:/opt/node_app/:rw
+      - contracts:/opt/node_app/src/contracts:ro
+      # for next and caching:
+      - /opt/node_app/.next
+      - /opt/node_app/node_modules
+    stdin_open: true
+    entrypoint: npm run dev
+volumes:
+  contracts:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: app/client/src/contracts
